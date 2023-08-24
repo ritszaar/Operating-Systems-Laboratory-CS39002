@@ -1,0 +1,31 @@
+﻿Heuristic for Detection of Malware
+
+
+Operating Systems Lab Assignment - 2
+
+
+Group 2
+
+
+Ritwik Ranjan Mallik (20CS10049)
+Ayush Kumar Dwivedi (20CS10084)
+Saptarshi De Chaudhury (20CS10080)
+Nikumbh Sarthak Sham (20CS30035)
+
+
+
+Heuristic For Malware Detection
+
+A heuristic has been devised for the detection of trojans which behaves similar to that given in the example. The principal component used by this heuristic is the utime field for a process which can be read from /proc/[pid]/stat file, where it appears as the 14th entry. A process’s utime is the amount of time it has been scheduled in the user mode, measured in clock ticks. Heuristic is defined in the form of a quantity called malwarity of a process. Higher the malwarity, higher is the probability for it to be the trojan.
+
+
+malwarity(process) = utime(process) + 𝚺 utime(descendants)
+
+
+The heuristic also uses stime, cutime and cstime for evaluation of malwarity. A process’s stime, cutime and cstime are defined as follows:
+* stime - Amount of time that the process has been scheduled in kernel mode, measured in clock ticks.
+* cutime - Amount of time that the process has been scheduled in kernel mode, measured in clock ticks.
+* cstime - Amount of time that the process waited-for children have been scheduled in kernel mode, measured in clock ticks.
+
+
+If a process has non zero stime, cutime and cstime it is highly unlikely for it to be the malware as the example malware only does fork() system calls which takes negligible kernel time and does not wait for children. Thus, additionally, for all those processes with a non zero stime, cutime or cstime, we define the malwarity to be 0. Moreover, processes with PIDs 0, 1 and 2 are not malwares as they are respectively the swapper or sched process, the init process and the kthreadd process. These three have also been defined to have a malwarity of 0.

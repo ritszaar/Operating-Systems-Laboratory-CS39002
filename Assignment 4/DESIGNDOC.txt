@@ -1,0 +1,119 @@
+OS LAB ASSIGNMENT-4
+
+GROUP-2
+-- SAPTARSHI DE CHAUDHURY: 20CS10080
+-- RITWIK RANJAN MALLIK: 20CS10049
+-- NIKUMBH SARTHAK SHAM: 20CS30035
+-- AYUSH KUMAR DWIVEDI: 20CS10084
+
+
+#########################################################
+		DATA STRUCTURES USED
+#########################################################
+
+*******************
+WALL QUEUE (wall): 
+*******************
+For each node, the wall queue has been kept as C++ STL 'queue of action pointers', which uses 'deque' as the underlying means to store data.
+The deque in turn is implemented as a dynamic array of fixed-size blocks, where each block is a fixed-size array of elements.
+	
+Note that using queue of action pointers allows us to create actions once, and while pushing to the feed queues of the neighbours, we can do so by simply pushing the pointers to the actions, rather than the actions themselves, which makes the program greatly memory-efficient.
+
+Also, both the push and pop operations of the wall queue takes O(1) time.
+
+Number of edges: 289003
+Number of nodes: 37700
+Avg. degree of node=(2*(number of edges)/(number of nodes))=15.33
+Avg. number of actions performed by each node= 10*(1+log2(15.33))=49
+Avg. size of wall queue in one iteration= 49
+
+*******************
+FEED QUEUE (feed):
+*******************
+For each node, the feed queue has been kept as C++ STL 'priority_queue of pair of {priority_value, pair of {action_pointer, feedPushedPrinted}}.
+Here, priority_value will be either 'priority' or 'time-priority' depending on the node.
+action_pointer will be the pointer to the action created by the neighbour node.
+feedPushedPointer is a structure contaning a boolean flag variable. It is used for the purpose of displaying the output in the log file in proper order. Thus, the flag variable stores if the pushing of the action pointer to the current feed queue has been printed/ written in the sns.log file or not.
+Priority queue in c++ stl is internally implemented by a max-heap data structure. Therefore, the push operation takes O(logN) time whereas pop() and top() operations take O(1) time, where N is the total queue size.
+
+From above calulation we know that,
+Avg. number of actions performed by each node= 10*(1+log2(15.33))=49
+Avg. size of feed queue = 49*15=735
+
+****************************
+SHARED QUEUE (sharedQueue):
+****************************
+There is a single global shared queue which is shared among all threads. It is also implemented same as wall queue of a node, i.e. as a queue of action pointers.
+
+From above calulation we know that,
+Avg. number of actions performed by each node= 10*(1+log2(15.33))=49
+Total number of actions performed by random 100 nodes= 49*100=4900
+Avg. size of shared queue = 4900
+
+***********************
+node structure (node):
+***********************
+A node has the following attributes:
+node_id: Unique int identifier for every node, as given in the CSV File
+order: int variable which stores either o-> priority or 1-> chronological, i.e. order of reading actions from the feed queue of that node
+neighbours: vector of pair of int, int: first member is the node id of the neighbour node and the second member is the number of common neighbours between the two nodes
+wall: wall queue as mentioned before
+feed: feed queue as mentioned before
+num_posts: number of post type actions created by the node
+num_comments: number of comment type actions created by the node
+num_likes: number of like type actions created by the node
+
+
+***************************
+action structure (action):
+***************************
+Apart from the given attributes, we have also maintained a bool variable 'creation_printed' to store if the creation of the action has been printed/ written to the sns.log file or not
+
+
+**********
+nodeList:
+**********
+It is a vector of node pointers of size equal to the total number of nodes.
+
+
+***************
+modifiedQueue:
+***************
+It is a special data structure which has an important use. It is used to store the node ids of those nodes whose feed queues have been updated (push occurred) in the pushUpdate threads alongwith the timestamp of updation.
+It has also been implemented as a simple c++ STL queue of pair of integer and time_t data type, where the integer is the node id of the node whose feed queue has been updated and time_t data type is used to store the time of updation.
+Storing this helps us in the readPost threads, where we can only check if there is any entry in the modifiedQueue. If there is one, we just read the actions from the feed queue of corresponding node.
+Thus, this is our 'smart way' of monitoring the neighbours whose neighbours have been updated.
+
+
+***************
+lastUpdated:
+***************
+It is a vector of time_t data type which stores the timestamp of each node's feed queue's last updation in the readPost thread.
+
+
+
+
+#######################################################
+			LOCKS
+#######################################################
+
+We are using the following mutex locks:
+	1). sharedQueueMutex
+	2). modifiedQueueMutex
+	3). writeToFileMutex
+	4). feedMutex[NODES_NUM]
+
+Therefore, we are using a total of 37703 mutex locks.
+
+Uses:
+1). sharedQueueMutex: used to ensure that the 'sharedQueue' queue is used by only a single thread at any point of time. This is because both the userSimulator and the 25 pushUpdate threads may try to update the sharedQueue at the same time, which may lead to race conditions, yielding unpredictable results.
+2). modifiedQueueMutex: used to ensure that the 'modifiedQueue' queue is used by only a single thread at any point of time. This is because both the 25 pushUpdate threads and the 10 readPost threads may try to update the modifiedQueue at the same time, which may lead to race conditions, yielding unpredictable results.
+3). writeToFileMutex: used to ensure that the output written to the log file as well as on the terminal is in the appropriate order.
+4). feedMutex[i]: For each node i, we have a feedMutex[i] lock to ensure that the feed queue of the node i is accessed and updated by a single thread at any point of time. In our program, all the pushUpdate threads as well as the readPost threads may try to simultaneously update the feed queue of any node. Hence, separate lock needed for each node.
+
+********************************************
+Justification for concurrency preservation:
+********************************************
+We have ensured concurrency preservation of our program, by using separate locks for each of the feed queues as well as the other shared data structures. This ensures that if any thread is accessing the feed queue of some particular node, it does not block the access of the feed queues of the other nodes by the remaining threads. 
+Moreover, since in all our threads, we are using different types of mutex locks in different parts of the thread functions, so multiple same or different types of threads can run concurrently. Hence, preserving concurrency.
+For example, in pushUpdate thread function, we first pop from the sharedQueue where we use the sharedQueueMutex lock. In the later part of the function, we use different locks for pushing the action popped to the feed queues of the neighbouring nodes. So, while one pushUpdate thread has finished popping out an action from the sharedQueue, another pushUpdate thread can acquire this lock and run concurrently while the former thread may have acquired lock on any of the feed queue.
