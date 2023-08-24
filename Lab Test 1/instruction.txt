@@ -1,0 +1,3 @@
+1. Run as: ./problem1.sh [Do chmod +x problem.sh if not done before]
+2. Run as: gcc problem2.c -o problem2; ./problem2
+2. Run as: gcc problem3.c -o problem3 -lpthread; ./problem3
